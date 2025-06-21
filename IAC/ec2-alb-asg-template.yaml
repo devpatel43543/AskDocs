@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for EC2, ALB, and ASG for Study Assistant React UI.
+
+Resources:
+  # Application Load Balancer
+  StudyAssistantALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - !ImportValue StudyAssistant-PublicSubnet1-Id
+        - !ImportValue StudyAssistant-PublicSubnet2-Id
+      SecurityGroups:
+        - !ImportValue StudyAssistant-ALBSecurityGroup-Id
+      Tags:
+        - Key: Name
+          Value: StudyAssistantALB
+        - Key: Project
+          Value: StudyAssistant
+
+  # ALB Target Group
+  StudyAssistantTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !ImportValue StudyAssistant-VPC-Id
+      TargetType: instance
+      Tags:
+        - Key: Name
+          Value: StudyAssistantTargetGroup
+        - Key: Project
+          Value: StudyAssistant
+
+  # ALB Listener
+  StudyAssistantListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref StudyAssistantTargetGroup
+      LoadBalancerArn: !Ref StudyAssistantALB
+      Port: 80
+      Protocol: HTTP
+      Tags:
+        - Key: Name
+          Value: StudyAssistantListener
+        - Key: Project
+          Value: StudyAssistant
+
+  # EC2 Launch Template
+  StudyAssistantLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: StudyAssistantLaunchTemplate
+      LaunchTemplateData:
+        ImageId: ami-0953476d60561c955 # Amazon Linux 2 AMI for us-east-1; verify availability
+        InstanceType: t2.micro
+        KeyName: my-ssh-key # Replace with your EC2 key pair name
+        SecurityGroupIds:
+          - !ImportValue StudyAssistant-EC2SecurityGroup-Id
+        UserData:
+          Fn::Base64: |
+            #!/bin/bash
+            yum update -y
+            yum install -y httpd
+            echo "<h1>Study Assistant React UI  $(hostname -f)</h1>" > /var/www/html/index.html
+            systemctl start httpd
+            systemctl enable httpd
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: StudyAssistantEC2
+              - Key: Project
+                Value: StudyAssistant
+
+  # Auto Scaling Group
+  StudyAssistantASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !ImportValue StudyAssistant-PublicSubnet1-Id
+        - !ImportValue StudyAssistant-PublicSubnet2-Id
+      LaunchTemplate:
+        LaunchTemplateId: !Ref StudyAssistantLaunchTemplate
+        Version: !GetAtt StudyAssistantLaunchTemplate.LatestVersionNumber
+      MinSize: 2
+      MaxSize: 4
+      DesiredCapacity: 2
+      TargetGroupARNs:
+        - !Ref StudyAssistantTargetGroup
+      Tags:
+        - Key: Name
+          Value: StudyAssistantASG
+          PropagateAtLaunch: true
+        - Key: Project
+          Value: StudyAssistant
+          PropagateAtLaunch: true
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 300
+
+Outputs:
+  ALBUrl:
+    Description: The URL of the Application Load Balancer
+    Value: !GetAtt StudyAssistantALB.DNSName
+    Export:
+      Name: StudyAssistant-ALB-URL
+
+  TargetGroupArn:
+    Description: The ARN of the Target Group
+    Value: !Ref StudyAssistantTargetGroup
+    Export:
+      Name: StudyAssistant-TargetGroup-Arn

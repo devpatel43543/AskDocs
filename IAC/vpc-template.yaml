@@ -1,0 +1,504 @@
+# AWSTemplateFormatVersion: '2010-09-09'
+# Description: CloudFormation template for VPC, subnets, Internet Gateway, and route tables for Study Assistant project.
+
+# Parameters:
+#   VpcCidr:
+#     Type: String
+#     Default: 10.0.0.0/16
+#     Description: CIDR block for the VPC.
+#   PublicSubnet1Cidr:
+#     Type: String
+#     Default: 10.0.8.0/24
+#     Description: CIDR block for the first public subnet (us-east-1a).
+#   PublicSubnet2Cidr:
+#     Type: String
+#     Default: 10.0.9.0/24
+#     Description: CIDR block for the second public subnet (us-east-1b).
+#   PrivateSubnet1Cidr:
+#     Type: String
+#     Default: 10.0.1.0/24
+#     Description: CIDR block for the first private subnet (Lambda, us-east-1a).
+#   PrivateSubnet2Cidr:
+#     Type: String
+#     Default: 10.0.5.0/24
+#     Description: CIDR block for the second private subnet (OpenSearch, us-east-1a).
+#   PrivateSubnet3Cidr:
+#     Type: String
+#     Default: 10.0.3.0/24
+#     Description: CIDR block for the third private subnet (SageMaker, us-east-1a).
+   
+# Resources:
+#   # VPC
+#   StudyAssistantVPC:
+#     Type: AWS::EC2::VPC
+#     Properties:
+#       CidrBlock: !Ref VpcCidr
+#       EnableDnsSupport: true
+#       EnableDnsHostnames: true
+#       Tags:
+#         - Key: Name
+#           Value: StudyAssistantVPC
+#         - Key: Project
+#           Value: StudyAssistant
+
+#   # Internet Gateway
+#   StudyAssistantIGW:
+#     Type: AWS::EC2::InternetGateway
+#     Properties:
+#       Tags:
+#         - Key: Name
+#           Value: StudyAssistantIGW
+#         - Key: Project
+#           Value: StudyAssistant
+
+#   # Attach Internet Gateway to VPC
+#   IGWAttachment:
+#     Type: AWS::EC2::VPCGatewayAttachment
+#     Properties:
+#       InternetGatewayId: !Ref StudyAssistantIGW
+#       VpcId: !Ref StudyAssistantVPC
+
+#   # Public Subnets (Multi-AZ for EC2)
+#   PublicSubnet1:
+#     Type: AWS::EC2::Subnet
+#     Properties:
+#       VpcId: !Ref StudyAssistantVPC
+#       CidrBlock: !Ref PublicSubnet1Cidr
+#       AvailabilityZone: us-east-1a
+#       MapPublicIpOnLaunch: true
+#       Tags:
+#         - Key: Name
+#           Value: Public-EC2-A
+#         - Key: Project
+#           Value: StudyAssistant
+
+#   PublicSubnet2:
+#     Type: AWS::EC2::Subnet
+#     Properties:
+#       VpcId: !Ref StudyAssistantVPC
+#       CidrBlock: !Ref PublicSubnet2Cidr
+#       AvailabilityZone: us-east-1b
+#       MapPublicIpOnLaunch: true
+#       Tags:
+#         - Key: Name
+#           Value: Public-EC2-B
+#         - Key: Project
+#           Value: StudyAssistant
+
+#   # Private Subnets (Single AZ for Lambda, OpenSearch, SageMaker)
+#   PrivateSubnet1:
+#     Type: AWS::EC2::Subnet
+#     Properties:
+#       VpcId: !Ref StudyAssistantVPC
+#       CidrBlock: !Ref PrivateSubnet1Cidr
+#       AvailabilityZone: us-east-1a
+#       Tags:
+#         - Key: Name
+#           Value: Private-Lambda
+#         - Key: Project
+#           Value: StudyAssistant
+
+#   PrivateSubnet2:
+#     Type: AWS::EC2::Subnet
+#     Properties:
+#       VpcId: !Ref StudyAssistantVPC
+#       CidrBlock: !Ref PrivateSubnet2Cidr
+#       AvailabilityZone: us-east-1a
+#       Tags:
+#         - Key: Name
+#           Value: Private-OpenSearch
+#         - Key: Project
+#           Value: StudyAssistant
+
+#   PrivateSubnet3:
+#     Type: AWS::EC2::Subnet
+#     Properties:
+#       VpcId: !Ref StudyAssistantVPC
+#       CidrBlock: !Ref PrivateSubnet3Cidr
+#       AvailabilityZone: us-east-1a
+#       Tags:
+#         - Key: Name
+#           Value: Private-SageMaker
+#         - Key: Project
+#           Value: StudyAssistant
+
+#   # Public Route Table
+#   PublicRouteTable:
+#     Type: AWS::EC2::RouteTable
+#     Properties:
+#       VpcId: !Ref StudyAssistantVPC
+#       Tags:
+#         - Key: Name
+#           Value: PublicRouteTable
+#         - Key: Project
+#           Value: StudyAssistant
+
+#   # Route to Internet Gateway
+#   PublicRoute:
+#     Type: AWS::EC2::Route
+#     Properties:
+#       RouteTableId: !Ref PublicRouteTable
+#       DestinationCidrBlock: 0.0.0.0/0
+#       GatewayId: !Ref StudyAssistantIGW
+
+#   # Associate Public Subnets with Public Route Table
+#   PublicSubnet1RouteTableAssociation:
+#     Type: AWS::EC2::SubnetRouteTableAssociation
+#     Properties:
+#       SubnetId: !Ref PublicSubnet1
+#       RouteTableId: !Ref PublicRouteTable
+
+#   PublicSubnet2RouteTableAssociation:
+#     Type: AWS::EC2::SubnetRouteTableAssociation
+#     Properties:
+#       SubnetId: !Ref PublicSubnet2
+#       RouteTableId: !Ref PublicRouteTable
+
+#   # Private Route Table
+#   PrivateRouteTable:
+#     Type: AWS::EC2::RouteTable
+#     Properties:
+#       VpcId: !Ref StudyAssistantVPC
+#       Tags:
+#         - Key: Name
+#           Value: PrivateRouteTable
+#         - Key: Project
+#           Value: StudyAssistant
+
+#   # Associate Private Subnets with Private Route Table
+#   PrivateSubnet1RouteTableAssociation:
+#     Type: AWS::EC2::SubnetRouteTableAssociation
+#     Properties:
+#       SubnetId: !Ref PrivateSubnet1
+#       RouteTableId: !Ref PrivateRouteTable
+
+#   PrivateSubnet2RouteTableAssociation:
+#     Type: AWS::EC2::SubnetRouteTableAssociation
+#     Properties:
+#       SubnetId: !Ref PrivateSubnet2
+#       RouteTableId: !Ref PrivateRouteTable
+
+#   PrivateSubnet3RouteTableAssociation:
+#     Type: AWS::EC2::SubnetRouteTableAssociation
+#     Properties:
+#       SubnetId: !Ref PrivateSubnet3
+#       RouteTableId: !Ref PrivateRouteTable
+
+# Outputs:
+#   VpcId:
+#     Description: The ID of the VPC
+#     Value: !Ref StudyAssistantVPC
+#     Export:
+#       Name: StudyAssistant-VPC-Id
+
+#   PublicSubnet1Id:
+#     Description: The ID of the first public subnet
+#     Value: !Ref PublicSubnet1
+#     Export:
+#       Name: StudyAssistant-PublicSubnet1-Id
+
+#   PublicSubnet2Id:
+#     Description: The ID of the second public subnet
+#     Value: !Ref PublicSubnet2
+#     Export:
+#       Name: StudyAssistant-PublicSubnet2-Id
+
+#   PrivateSubnet1Id:
+#     Description: The ID of the first private subnet (Lambda)
+#     Value: !Ref PrivateSubnet1
+#     Export:
+#       Name: StudyAssistant-PrivateSubnet1-Id
+
+#   PrivateSubnet2Id:
+#     Description: The ID of the second private subnet (OpenSearch)
+#     Value: !Ref PrivateSubnet2
+#     Export:
+#       Name: StudyAssistant-PrivateSubnet2-Id
+
+#   PrivateSubnet3Id:
+#     Description: The ID of the third private subnet (SageMaker)
+#     Value: !Ref PrivateSubnet3
+#     Export:
+#       Name: StudyAssistant-PrivateSubnet3-Id
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for VPC, subnets, Internet Gateway, and route tables for Study Assistant project.
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR block for the VPC.
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.0.8.0/24
+    Description: CIDR block for the first public subnet (us-east-1a).
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.0.9.0/24
+    Description: CIDR block for the second public subnet (us-east-1b).
+  PrivateSubnet1Cidr:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: CIDR block for the first private subnet (Lambda, us-east-1a).
+  PrivateSubnet2Cidr:
+    Type: String
+    Default: 10.0.5.0/24
+    Description: CIDR block for the second private subnet (OpenSearch, us-east-1a).
+  PrivateSubnet3Cidr:
+    Type: String
+    Default: 10.0.3.0/24
+    Description: CIDR block for the third private subnet (SageMaker, us-east-1a).
+  PrivateSubnet4Cidr:
+    Type: String
+    Default: 10.0.7.0/24
+    Description: CIDR block for the fourth private subnet (SageMaker, us-east-1b).
+
+Resources:
+  # VPC
+  StudyAssistantVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: StudyAssistantVPC
+        - Key: Project
+          Value: StudyAssistant
+
+  # Internet Gateway
+  StudyAssistantIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: StudyAssistantIGW
+        - Key: Project
+          Value: StudyAssistant
+
+  # Attach Internet Gateway to VPC
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref StudyAssistantIGW
+      VpcId: !Ref StudyAssistantVPC
+
+  # Public Subnets (Multi-AZ for EC2)
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StudyAssistantVPC
+      CidrBlock: !Ref PublicSubnet1Cidr
+      AvailabilityZone: us-east-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Public-EC2-A
+        - Key: Project
+          Value: StudyAssistant
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StudyAssistantVPC
+      CidrBlock: !Ref PublicSubnet2Cidr
+      AvailabilityZone: us-east-1b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Public-EC2-B
+        - Key: Project
+          Value: StudyAssistant
+
+  # Private Subnets (Single AZ for Lambda, OpenSearch, SageMaker)
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StudyAssistantVPC
+      CidrBlock: !Ref PrivateSubnet1Cidr
+      AvailabilityZone: us-east-1a
+      Tags:
+        - Key: Name
+          Value: Private-Lambda
+        - Key: Project
+          Value: StudyAssistant
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StudyAssistantVPC
+      CidrBlock: !Ref PrivateSubnet2Cidr
+      AvailabilityZone: us-east-1a
+      Tags:
+        - Key: Name
+          Value: Private-OpenSearch
+        - Key: Project
+          Value: StudyAssistant
+
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StudyAssistantVPC
+      CidrBlock: !Ref PrivateSubnet3Cidr
+      AvailabilityZone: us-east-1a
+      Tags:
+        - Key: Name
+          Value: Private-SageMaker-A
+        - Key: Project
+          Value: StudyAssistant
+
+  PrivateSubnet4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref StudyAssistantVPC
+      CidrBlock: !Ref PrivateSubnet4Cidr
+      AvailabilityZone: us-east-1b
+      Tags:
+        - Key: Name
+          Value: Private-SageMaker-B
+        - Key: Project
+          Value: StudyAssistant
+
+  # Public Route Table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref StudyAssistantVPC
+      Tags:
+        - Key: Name
+          Value: PublicRouteTable
+        - Key: Project
+          Value: StudyAssistant
+
+  # Route to Internet Gateway
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref StudyAssistantIGW
+
+  # Associate Public Subnets with Public Route Table
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # NAT Gateway
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      AllocationId: !GetAtt NatEIP.AllocationId
+      Tags:
+        - Key: Name
+          Value: StudyAssistantNATGateway
+        - Key: Project
+          Value: StudyAssistant
+
+  # Elastic IP for NAT Gateway
+  NatEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: StudyAssistantNatEIP
+        - Key: Project
+          Value: StudyAssistant
+
+  # Private Route Table
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref StudyAssistantVPC
+      Tags:
+        - Key: Name
+          Value: PrivateRouteTable
+        - Key: Project
+          Value: StudyAssistant
+
+  # Route to NAT Gateway
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  # Associate Private Subnets with Private Route Table
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet3
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet4RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet4
+      RouteTableId: !Ref PrivateRouteTable
+
+Outputs:
+  VpcId:
+    Description: The ID of the VPC
+    Value: !Ref StudyAssistantVPC
+    Export:
+      Name: StudyAssistant-VPC-Id
+
+  PublicSubnet1Id:
+    Description: The ID of the first public subnet
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: StudyAssistant-PublicSubnet1-Id
+
+  PublicSubnet2Id:
+    Description: The ID of the second public subnet
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: StudyAssistant-PublicSubnet2-Id
+
+  PrivateSubnet1Id:
+    Description: The ID of the first private subnet (Lambda)
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: StudyAssistant-PrivateSubnet1-Id
+
+  PrivateSubnet2Id:
+    Description: The ID of the second private subnet (OpenSearch)
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: StudyAssistant-PrivateSubnet2-Id
+
+  PrivateSubnet3Id:
+    Description: The ID of the third private subnet (SageMaker-A)
+    Value: !Ref PrivateSubnet3
+    Export:
+      Name: StudyAssistant-PrivateSubnet3-Id
+
+  PrivateSubnet4Id:
+    Description: The ID of the fourth private subnet (SageMaker-B)
+    Value: !Ref PrivateSubnet4
+    Export:
+      Name: StudyAssistant-PrivateSubnet4-Id

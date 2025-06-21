@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for security groups and IAM roles for Study Assistant project.
+
+Resources:
+  # Security Group for ALB (public-facing)
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Application Load Balancer
+      VpcId:
+        Fn::ImportValue: StudyAssistant-VPC-Id
+      Tags:
+        - Key: Name
+          Value: ALBSecurityGroup
+        - Key: Project
+          Value: StudyAssistant
+
+  # Security Group for EC2 (React UI)
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EC2 instances hosting React UI
+      VpcId:
+        Fn::ImportValue: StudyAssistant-VPC-Id
+      Tags:
+        - Key: Name
+          Value: EC2SecurityGroup
+        - Key: Project
+          Value: StudyAssistant
+
+  # ALB Ingress Rule (public access on 443)
+  ALBIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+
+  # ALB Egress Rule (to EC2 on 80)
+  ALBEgressRule:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      DestinationSecurityGroupId: !Ref EC2SecurityGroup
+
+  # EC2 Ingress Rule (from ALB on 80)
+  EC2IngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref EC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+  # EC2 Egress Rule (to internet on 443)
+  EC2EgressRule:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref EC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+
+  # Security Group for Lambda
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Lambda functions
+      VpcId:
+        Fn::ImportValue: StudyAssistant-VPC-Id
+      Tags:
+        - Key: Name
+          Value: LambdaSecurityGroup
+        - Key: Project
+          Value: StudyAssistant
+
+  # Lambda Egress Rule (to OpenSearch/SageMaker on 443)
+  LambdaEgressRule:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref LambdaSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+
+  # Security Group for OpenSearch
+  OpenSearchSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for OpenSearch domain
+      VpcId:
+        Fn::ImportValue: StudyAssistant-VPC-Id
+      Tags:
+        - Key: Name
+          Value: OpenSearchSecurityGroup
+        - Key: Project
+          Value: StudyAssistant
+
+  # OpenSearch Ingress Rule (from Lambda on 443)
+  OpenSearchIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref OpenSearchSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+  # Security Group for SageMaker
+  SageMakerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for SageMaker endpoint
+      VpcId:
+        Fn::ImportValue: StudyAssistant-VPC-Id
+      Tags:
+        - Key: Name
+          Value: SageMakerSecurityGroup
+        - Key: Project
+          Value: StudyAssistant
+
+  # SageMaker Ingress Rule (from Lambda on 443)
+  SageMakerIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SageMakerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+  # IAM Role for Lambda
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - es:ESHttp*
+                  - sagemaker:InvokeEndpoint
+                  - dynamodb:PutItem
+                  - cloudwatch:PutMetricData
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: StudyAssistant
+
+Outputs:
+  ALBSecurityGroupId:
+    Description: The ID of the ALB Security Group
+    Value: !Ref ALBSecurityGroup
+    Export:
+      Name: StudyAssistant-ALBSecurityGroup-Id
+
+  EC2SecurityGroupId:
+    Description: The ID of the EC2 Security Group
+    Value: !Ref EC2SecurityGroup
+    Export:
+      Name: StudyAssistant-EC2SecurityGroup-Id
+
+  LambdaSecurityGroupId:
+    Description: The ID of the Lambda Security Group
+    Value: !Ref LambdaSecurityGroup
+    Export:
+      Name: StudyAssistant-LambdaSecurityGroup-Id
+
+  OpenSearchSecurityGroupId:
+    Description: The ID of the OpenSearch Security Group
+    Value: !Ref OpenSearchSecurityGroup
+    Export:
+      Name: StudyAssistant-OpenSearchSecurityGroup-Id
+
+  SageMakerSecurityGroupId:
+    Description: The ID of the SageMaker Security Group
+    Value: !Ref SageMakerSecurityGroup
+    Export:
+      Name: StudyAssistant-SageMakerSecurityGroup-Id
+
+  LambdaExecutionRoleArn:
+    Description: The ARN of the Lambda Execution Role
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: StudyAssistant-LambdaExecutionRole-Arn

@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for creating the Study Assistant IAM role.
+
+Resources:
+  StudyAssistantNewExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: StudyAssistantNewExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SageMakerLambdaAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # SageMaker and Lambda ECR Access
+              - Effect: Allow
+                Action:
+                  - ecr:Get*
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                Resource: '*'
+              # S3 Access for Model Data and Lambda Code
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - arn:aws:s3:::study-assistant-sagemaker-models
+                  - arn:aws:s3:::study-assistant-sagemaker-models/*
+                  - arn:aws:s3:::study-assistant-lambda-code
+                  - arn:aws:s3:::study-assistant-lambda-code/*
+              # CloudWatch Logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              # VPC Actions for SageMaker and Lambda
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeSecurityGroups
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                Resource: '*'
+              # SageMaker Actions
+              - Effect: Allow
+                Action:
+                  - sagemaker:CreateModel
+                  - sagemaker:CreateEndpointConfig
+                  - sagemaker:CreateEndpoint
+                  - sagemaker:UpdateEndpoint
+                  - sagemaker:DescribeEndpoint
+                  - sagemaker:InvokeEndpoint
+                Resource: '*'
+              # OpenSearch Access
+              - Effect: Allow
+                Action:
+                  - es:*
+                Resource: arn:aws:es:us-east-1:183631350449:domain/study-assistant-opensearch/*
+              # DynamoDB Access
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: arn:aws:dynamodb:us-east-1:183631350449:table/QueryHistory
+              # IAM PassRole for SageMaker (Hardcoded ARN)
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: arn:aws:iam::183631350449:role/StudyAssistantNewExecutionRole
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: sagemaker.amazonaws.com
+      Tags:
+        - Key: Project
+          Value: StudyAssistant
+
+Outputs:
+  NewExecutionRoleArn:
+    Description: The ARN of the new execution role
+    Value: !GetAtt StudyAssistantNewExecutionRole.Arn
+    Export:
+      Name: StudyAssistant-NewExecutionRole-Arn

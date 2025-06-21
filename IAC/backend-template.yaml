@@ -1,0 +1,151 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for OpenSearch, SageMaker, and DynamoDB for Study Assistant backend.
+
+Resources:
+  # DynamoDB Table
+  StudyAssistantDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: QueryHistory
+      AttributeDefinitions:
+        - AttributeName: UserId
+          AttributeType: S
+        - AttributeName: Timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: UserId
+          KeyType: HASH
+        - AttributeName: Timestamp
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Project
+          Value: StudyAssistant
+
+  # OpenSearch Domain
+  StudyAssistantOpenSearchDomain:
+    Type: AWS::OpenSearchService::Domain
+    Properties:
+      DomainName: study-assistant-opensearch
+      EngineVersion: OpenSearch_2.11
+      ClusterConfig:
+        InstanceType: t3.small.search
+        InstanceCount: 1
+        ZoneAwarenessEnabled: false
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+        VolumeType: gp2
+      VPCOptions:
+        SubnetIds:
+          - !ImportValue StudyAssistant-PrivateSubnet2-Id
+        SecurityGroupIds:
+          - !ImportValue StudyAssistant-OpenSearchSecurityGroup-Id
+      AccessPolicies:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !ImportValue StudyAssistant-NewExecutionRole-Arn
+            Action: es:*
+            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/study-assistant-opensearch/*
+      Tags:
+        - Key: Project
+          Value: StudyAssistant
+
+  # SageMaker Model
+  StudyAssistantSageMakerModel:
+    Type: AWS::SageMaker::Model
+    Properties:
+      ModelName: SAT5Model
+      ExecutionRoleArn: !ImportValue StudyAssistant-NewExecutionRole-Arn
+      PrimaryContainer:
+        Image: 763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-inference:2.0.0-transformers4.28.1-gpu-py310-cu118-ubuntu20.04
+        Environment:
+          HF_MODEL_ID: google/flan-t5-small
+          HF_TASK: text2text-generation
+        Mode: SingleModel
+      VpcConfig:
+        Subnets:
+          - !ImportValue StudyAssistant-PrivateSubnet3-Id
+          - !ImportValue StudyAssistant-PrivateSubnet4-Id
+        SecurityGroupIds:
+          - !ImportValue StudyAssistant-SageMakerSecurityGroup-Id
+      Tags:
+        - Key: Project
+          Value: StudyAssistant
+
+  # SageMaker Endpoint Config
+  StudyAssistantSageMakerEndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      ProductionVariants:
+        - VariantName: AllTraffic
+          ModelName: !GetAtt StudyAssistantSageMakerModel.ModelName
+          InstanceType: ml.t2.medium
+          InitialInstanceCount: 1
+      Tags:
+        - Key: Project
+          Value: StudyAssistant
+
+  # SageMaker Endpoint
+  StudyAssistantSageMakerEndpoint:
+    Type: AWS::SageMaker::Endpoint
+    Properties:
+      EndpointConfigName: !GetAtt StudyAssistantSageMakerEndpointConfig.EndpointConfigName
+      Tags:
+        - Key: Project
+          Value: StudyAssistant
+  
+  EmbeddingSageMakerModel:
+    Type: AWS::SageMaker::Model
+    Properties:
+      ExecutionRoleArn: !ImportValue StudyAssistant-NewExecutionRole-Arn
+      PrimaryContainer:
+        Image: 763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-inference:2.0.0-transformers4.28.1-cpu-py310-ubuntu20.04
+        Environment:
+          HF_MODEL_ID: sentence-transformers/all-MiniLM-L6-v2
+          HF_TASK: feature-extraction
+      VpcConfig:
+        Subnets:
+          - !ImportValue StudyAssistant-PrivateSubnet3-Id
+          - !ImportValue StudyAssistant-PrivateSubnet4-Id
+        SecurityGroupIds:
+          - !ImportValue StudyAssistant-SageMakerSecurityGroup-Id
+      ModelName: StudyAssistantEmbeddingModel
+
+  EmbeddingSageMakerEndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      ProductionVariants:
+        - VariantName: AllTraffic
+          ModelName: !GetAtt EmbeddingSageMakerModel.ModelName
+          InitialInstanceCount: 1
+          InstanceType: ml.t2.medium  # Small instance for embeddings
+
+  EmbeddingSageMakerEndpoint:
+    Type: AWS::SageMaker::Endpoint
+    Properties:
+      EndpointConfigName: !GetAtt EmbeddingSageMakerEndpointConfig.EndpointConfigName
+      EndpointName: StudyAssistantEmbeddingEndpoint
+
+Outputs:
+  OpenSearchDomainEndpoint:
+    Description: The endpoint of the OpenSearch Domain
+    Value: !GetAtt StudyAssistantOpenSearchDomain.DomainEndpoint
+    Export:
+      Name: StudyAssistant-OpenSearch-Endpoint
+  SageMakerEndpointName:
+    Description: The name of the SageMaker Endpoint
+    Value: !Ref StudyAssistantSageMakerEndpoint
+    Export:
+      Name: StudyAssistant-SageMaker-Endpoint
+  DynamoDBTableName:
+    Description: The name of the DynamoDB Table
+    Value: !Ref StudyAssistantDynamoDBTable
+    Export:
+      Name: StudyAssistant-DynamoDB-Table
+  EmbeddingEndpointName:
+      Value: !Ref EmbeddingSageMakerEndpoint
+      Export:
+        Name: StudyAssistant-Embedding-Endpoint

@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for Cognito User Pool and App Client for Study Assistant project.
+
+Resources:
+  # Cognito User Pool
+  StudyAssistantUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: StudyAssistantUserPool
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+
+  # Cognito User Pool Client
+  StudyAssistantUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: StudyAssistantClient
+      UserPoolId: !Ref StudyAssistantUserPool
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+
+Outputs:
+  UserPoolId:
+    Description: The ID of the Cognito User Pool
+    Value: !Ref StudyAssistantUserPool
+    Export:
+      Name: StudyAssistant-UserPool-Id
+
+  UserPoolClientId:
+    Description: The ID of the Cognito User Pool Client
+    Value: !Ref StudyAssistantUserPoolClient
+    Export:
+      Name: StudyAssistant-UserPoolClient-Id

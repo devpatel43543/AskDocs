@@ -331,7 +331,7 @@ export default function Chat() {
                 {fileName && <div className="file-name">Selected: {fileName}</div>}
 
                 <button onClick={handleFileUpload} disabled={isProcessing || !file} className="process-btn">
-                  Upload & Process Document
+                  Upload & Process Documents
                 </button>
               </div>
             </div>

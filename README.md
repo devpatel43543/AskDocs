@@ -1,7 +1,7 @@
 # 📚 AskDocs
 
 ## 🧠 Overview  
-**AskDocs** transforms how users interact with their documents by enabling conversational, AI-powered querying through an intuitive chat interface. Users can upload documents and receive accurate, context-based answers powered by Retrieval-Augmented Generation (RAG) techniques combining vector search and natural language generation. The platform leverages AWS services to ensure scalable, secure, and low-latency performance.
+**AskDocs** transforms how users interact with their documents by enabling conversational, AI-powered querying through an intuitive chat interface. Users can upload documents and receive accurate, context-based answers powered by Retrieval-Augmented Generation (RAG) techniques combining vector search and natural language generation. The platform leverages AWS services to ensure scalable, secure, and low-latency performance. 
 
 ---
 

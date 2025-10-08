@@ -81,3 +81,4 @@
 - **Multi-Document Querying** — Cross-document context and comparison  
 - **Advanced Analytics** — Visualize document insights and trends  
 - **Multi-Language Support** — Enable non-English document querying  
+nothing 
